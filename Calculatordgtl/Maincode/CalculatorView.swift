@@ -7,7 +7,6 @@
 
 import SwiftUI
 
-
 enum CalcButton: String, Hashable {
     case clear = "AC"
     case sin = "sin"
@@ -51,7 +50,7 @@ struct CalculatorView: View {
     @State private var history = ""
     @State private var orientation: UIDeviceOrientation = UIDevice.current.orientation
 
-    // Grid layout for buttons.
+    // Define the grid layout for buttons.
     let buttons: [[CalcButton]] = [
         [.sin, .cos, .tan, .divide],
         [.seven, .eight, .nine, .multiply],
@@ -63,7 +62,7 @@ struct CalculatorView: View {
     var body: some View {
         VStack(spacing: 12) {
             Spacer()
-            // Display area.
+            // Display the history (if any)
             if !history.isEmpty && history != "0" {
                 HStack {
                     Spacer()
@@ -73,6 +72,7 @@ struct CalculatorView: View {
                         .padding(.horizontal)
                 }
             }
+            // Main display area for the current expression/result.
             HStack {
                 Spacer()
                 Text(display)
@@ -106,7 +106,7 @@ struct CalculatorView: View {
         }
     }
     
-  
+   
     func buttonTapped(_ button: CalcButton) {
         switch button {
         case .clear:
@@ -118,11 +118,14 @@ struct CalculatorView: View {
             }
         case .equal:
             history = display
-            // First, insert missing parentheses if needed and process trig calls.
+            // Insert missing parentheses for trig functions (e.g. "sin90" -> "sin(90)")
             let withParens = insertMissingParentheses(display)
+            // Process trig calls to compute their numeric values.
             let processedExpr = processTrigFunctions(withParens)
-            // Evaluate the final expression using the Objective-C method.
-            let result = evaluateExpression(processedExpr)
+            // Convert integers to floats before evaluation.
+            let floatProcessed = convertIntegersToFloats(processedExpr)
+            // Call the Objective‑C method from the Calculator framework.
+            let result = Calculator.evaluateExpression(floatProcessed)
             display = formatResult(result)
         default:
             let input = button.rawValue
@@ -134,19 +137,18 @@ struct CalculatorView: View {
         }
     }
     
+  
     
+    // Inserts missing parentheses in trig calls, e.g. converts "sin90" to "sin(90)"
     func insertMissingParentheses(_ expr: String) -> String {
-        
         let pattern = "(sin|cos|tan)(?!\\()(-?\\d+(?:\\.\\d+)?)"
-        
         guard let regex = try? NSRegularExpression(pattern: pattern) else { return expr }
         let range = NSRange(expr.startIndex..., in: expr)
-        // Replace with: functionName(number) using the captured groups.
-        let newExpr = regex.stringByReplacingMatches(in: expr, options: [], range: range, withTemplate: "$1($2)")
-        return newExpr
+        return regex.stringByReplacingMatches(in: expr, options: [], range: range, withTemplate: "$1($2)")
     }
     
-    
+    // Processes each trig function call by extracting the number inside parentheses,
+    // computing the value and replacing the call with its computed value.
     func processTrigFunctions(_ expr: String) -> String {
         let pattern = "(sin|cos|tan)\\((-?\\d+(?:\\.\\d+)?)\\)"
         guard let regex = try? NSRegularExpression(pattern: pattern) else { return expr }
@@ -154,7 +156,7 @@ struct CalculatorView: View {
         var newExpr = expr
         let matches = regex.matches(in: expr, options: [], range: nsRange)
         
-        // Replace matches in reverse order to maintain valid indices.
+        // Process matches in reverse order so that string indices remain valid.
         for match in matches.reversed() {
             guard let funcRange = Range(match.range(at: 1), in: newExpr),
                   let argRange = Range(match.range(at: 2), in: newExpr) else { continue }
@@ -179,24 +181,8 @@ struct CalculatorView: View {
         return newExpr
     }
     
-   
-    func evaluateExpression(_ expr: String) -> Double {
-        // Replace custom operator symbols.
-        let processed = expr
-            .replacingOccurrences(of: "×", with: "*")
-            .replacingOccurrences(of: "÷", with: "/")
-            .replacingOccurrences(of: "−", with: "-")
-        
-        let floatProcessed = convertIntegersToFloats(processed)
-        
-        let nsExp = NSExpression(format: floatProcessed)
-        if let result = nsExp.expressionValue(with: nil, context: nil) as? NSNumber {
-            return result.doubleValue
-        }
-        return 0
-    }
-    
-    // Function to convert integers to floats in the expression
+    // Converts integer numbers in the expression to floating‑point numbers (by appending ".0")
+    // to ensure NSExpression performs floating‑point arithmetic.
     func convertIntegersToFloats(_ expr: String) -> String {
         let numberPattern = try! NSRegularExpression(pattern: "[-+]?(\\d+\\.\\d*|\\.\\d+|\\d+)")
         let matches = numberPattern.matches(in: expr, options: [], range: NSRange(location: 0, length: expr.utf16.count))
@@ -207,32 +193,29 @@ struct CalculatorView: View {
             let matchStart = matchRange.location
             let matchEnd = matchStart + matchRange.length
             
-            // Append the part from currentIndex to matchStart
+            // Append substring from current index to the start of the match.
             if currentIndex < matchStart {
                 let start = expr.index(expr.startIndex, offsetBy: currentIndex)
                 let end = expr.index(expr.startIndex, offsetBy: matchStart)
                 newExpr += String(expr[start..<end])
             }
             
-            // Get the matched string
+            // Get the matched number string.
             let start = expr.index(expr.startIndex, offsetBy: matchStart)
             let end = expr.index(expr.startIndex, offsetBy: matchEnd)
             let matchStr = String(expr[start..<end])
             
-            // Modify if needed: add ".0" if no decimal point is present.
+            // If the number lacks a decimal point, append ".0".
             var modifiedStr = matchStr
             if !modifiedStr.contains(".") {
                 modifiedStr += ".0"
             }
             
-            // Append the modified string
             newExpr += modifiedStr
-            
-            // Update currentIndex to matchEnd
             currentIndex = matchEnd
         }
         
-        // Append the remaining part of the expression
+        // Append any remaining part of the expression.
         if currentIndex < expr.utf16.count {
             let start = expr.index(expr.startIndex, offsetBy: currentIndex)
             newExpr += String(expr[start...])
@@ -241,7 +224,7 @@ struct CalculatorView: View {
         return newExpr
     }
     
-    
+    // Formats the computed result
     func formatResult(_ result: Double) -> String {
         let threshold = 1e-10
         if abs(result) < threshold { return "0" }
@@ -251,7 +234,7 @@ struct CalculatorView: View {
         return "\(result)"
     }
     
-    
+   
     func buttonWidth(for button: CalcButton) -> CGFloat {
         let spacing: CGFloat = 12
         let baseDimension = min(UIScreen.main.bounds.width, UIScreen.main.bounds.height)

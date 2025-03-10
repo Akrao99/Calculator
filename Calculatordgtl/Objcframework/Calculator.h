@@ -8,11 +8,6 @@ NS_ASSUME_NONNULL_BEGIN
 
 @interface Calculator : NSObject
 
-// Basic arithmetic operations 
-- (double)add:(double)num1 withNumber:(double)num2;
-- (double)subtract:(double)num1 withNumber:(double)num2;
-- (double)multiply:(double)num1 withNumber:(double)num2;
-- (double)divide:(double)num1 withNumber:(double)num2;
 
 
 //Expression evaluation

@@ -2,24 +2,8 @@
 
 @implementation Calculator
 
-//Basic Arithmetic Operations
 
-- (double)add:(double)num1 withNumber:(double)num2 {
-    return num1 + num2;
-}
 
-- (double)subtract:(double)num1 withNumber:(double)num2 {
-    return num1 - num2;
-}
-
-- (double)multiply:(double)num1 withNumber:(double)num2 {
-    return num1 * num2;
-}
-
-- (double)divide:(double)num1 withNumber:(double)num2 {
-    if (num2 == 0) return NAN;
-    return num1 / num2;
-}
 
 
 //Expression Evaluation
